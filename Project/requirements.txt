@@ -1,4 +1,5 @@
-﻿asttokens==2.4.1
+gunicorn
+asttokens==2.4.1
 blinker==1.9.0
 certifi==2025.7.14
 cffi==1.17.1
