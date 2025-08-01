@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% set show_status_bar = true %}
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+<div class="dashboard">
+   <div class="smart-control-center">
+    <div class="power-controls">
+        <button id="btnTurnOn" class="btn-on">
+            <i class="fas fa-toggle-on"></i> Turn ON
+        </button>
+        <button id="btnTurnOff" class="btn-off">
+            <i class="fas fa-toggle-off"></i> Turn OFF
+        </button>
+    </div>
+
+    <div class="timer-control">
+        <label for="timerMinutes" class="timer-label">
+            <i class="fas fa-clock"></i> Set Timer (minutes)
+        </label>
+        <input type="number" id="timerMinutes" min="1" value="30" class="timer-input" />
+        
+        <div class="timer-buttons">
+            <button id="setTimerOn" class="btn-on">
+                ⏱ Timer: Turn ON
+            </button>
+            <button id="setTimerOff" class="btn-off">
+                ⏱ Timer: Turn OFF
+            </button>
+            <button id="cancelTimer" class="btn-cancel">
+                ❌ Cancel Timer
+            </button>
+        </div>
+    </div>
+
+    <div id="countdownDisplay" class="countdown-style"></div>
+</div>
+
+    <h2 style="text-align:center;">Real-Time Energy Usage</h2>
+    <div class="charts-container">
+        <canvas id="powerChart"></canvas>
+        <canvas id="voltageChart"></canvas>
+        <canvas id="currentChart"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const powerChart = new Chart(document.getElementById('powerChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Power (W)',
+            data: [],
+            borderColor: 'blue',
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+const voltageChart = new Chart(document.getElementById('voltageChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Voltage (V)',
+            data: [],
+            borderColor: 'green',
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+const currentChart = new Chart(document.getElementById('currentChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Current (A)',
+            data: [],
+            borderColor: 'red',
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+async function updateData() {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    const now = new Date().toLocaleTimeString();
+
+    const statusDiv = document.getElementById('deviceStatus');
+    const voltageSpan = document.getElementById('currentVoltage');
+    const powerSpan = document.getElementById('currentPower');
+    const currentSpam = document.getElementById('current');
+
+    if (data.connected) {
+        if (statusDiv) statusDiv.textContent = "Device Connected ✅";
+        if (voltageSpan) voltageSpan.textContent = data.voltage ? data.voltage.toFixed(1) + ' V' : '-- V';
+        if (powerSpan) powerSpan.textContent = data.power ? data.power.toFixed(2) + ' W' : '-- W';
+        if (currentSpam) currentSpam.textContent = data.current ? data.current.toFixed(2) + ' A' : '-- A';
+
+        powerChart.data.labels.push(now);
+        powerChart.data.datasets[0].data.push(data.power);
+        voltageChart.data.labels.push(now);
+        voltageChart.data.datasets[0].data.push(data.voltage);
+        currentChart.data.labels.push(now);
+        currentChart.data.datasets[0].data.push(data.current);
+
+        if (powerChart.data.labels.length > 50) {
+            powerChart.data.labels.shift();
+            powerChart.data.datasets[0].data.shift();
+            voltageChart.data.labels.shift();
+            voltageChart.data.datasets[0].data.shift();
+            currentChart.data.labels.shift();
+            currentChart.data.datasets[0].data.shift();
+        }
+
+        powerChart.update();
+        voltageChart.update();
+        currentChart.update();
+    } else {
+        if (statusDiv) statusDiv.textContent = "Device Not Connected ❌";
+        if (voltageSpan) voltageSpan.textContent = '-- V';
+        if (powerSpan) powerSpan.textContent = '-- W';
+        if (currentSpam) currentSpam.textContent = '-- A';
+    }
+}
+
+document.getElementById('btnTurnOn').addEventListener('click', async () => {
+    const statusDiv = document.getElementById('deviceStatus');
+    statusDiv.textContent = "Turning ON...";
+    try {
+        const res = await fetch('/api/turn_on', { method: 'POST' });
+        const data = await res.json();
+        statusDiv.textContent = data.message;
+    } catch (error) {
+        statusDiv.textContent = "Error turning ON device.";
+    }
+});
+
+document.getElementById('btnTurnOff').addEventListener('click', async () => {
+    const statusDiv = document.getElementById('deviceStatus');
+    statusDiv.textContent = "Turning OFF...";
+    try {
+        const res = await fetch('/api/turn_off', { method: 'POST' });
+        const data = await res.json();
+        statusDiv.textContent = data.message;
+    } catch (error) {
+        statusDiv.textContent = "Error turning OFF device.";
+    }
+});
+
+setInterval(updateData, 10000);
+updateData();
+
+let countdownInterval = null;
+
+function startCountdown(minutes, actionType) {
+    clearInterval(countdownInterval); // clear previous countdown
+    const countdownDisplay = document.getElementById('countdownDisplay');
+    let totalSeconds = minutes * 60;
+
+    countdownInterval = setInterval(() => {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+
+        countdownDisplay.textContent = `⏳ ${actionType === 'on' ? 'Turning ON' : 'Turning OFF'} in ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        if (totalSeconds <= 0) {
+            clearInterval(countdownInterval);
+            countdownDisplay.textContent = `✅ Device should be ${actionType === 'on' ? 'ON' : 'OFF'} now.`;
+        }
+
+        totalSeconds--;
+    }, 1000);
+}
+
+document.getElementById('setTimerOn').addEventListener('click', async () => {
+    const minutes = parseInt(document.getElementById('timerMinutes').value);
+    const statusDiv = document.getElementById('deviceStatus');
+    if (!minutes || minutes < 1) return alert("Please enter valid minutes");
+
+    try {
+        const res = await fetch('/api/timer_on', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutes })
+        });
+        const data = await res.json();
+        statusDiv.textContent = data.message;
+        startCountdown(minutes, 'on');
+    } catch (err) {
+        statusDiv.textContent = "Failed to set ON timer.";
+    }
+});
+
+document.getElementById('setTimerOff').addEventListener('click', async () => {
+    const minutes = parseInt(document.getElementById('timerMinutes').value);
+    const statusDiv = document.getElementById('deviceStatus');
+    if (!minutes || minutes < 1) return alert("Please enter valid minutes");
+
+    try {
+        const res = await fetch('/api/timer_off', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutes })
+        });
+        const data = await res.json();
+        statusDiv.textContent = data.message;
+        startCountdown(minutes, 'off');
+    } catch (err) {
+        statusDiv.textContent = "Failed to set OFF timer.";
+    }
+});
+document.getElementById('cancelTimer').addEventListener('click', () => {
+    clearInterval(countdownInterval);
+    document.getElementById('countdownDisplay').textContent = '⛔ Timer cancelled.';
+});
+
+</script>
+{% endblock %}

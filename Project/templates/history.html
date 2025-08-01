@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %} History{% endblock %}
+
+{% block content %}
+<div class="history">
+    <h2> History</h2>
+    
+    <form method="GET" action="{{ url_for('history') }}">
+        <select name="date" required>
+            <option value="" disabled {% if not selected_date %}selected{% endif %}>-- Select a date --</option>
+            {% for date in dates %}
+                <option value="{{ date }}" {% if selected_date == date %}selected{% endif %}>{{ date }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Show</button>
+    </form>
+    
+    {% if selected_date %}
+        <h3>Data for {{ selected_date }}</h3>
+        
+        {% if times %}
+            <canvas id="powerChart"></canvas>
+            <canvas id="voltageChart"></canvas>
+            <canvas id="currentChart"></canvas>
+        {% else %}
+            <div class="no-data">No data found for this date.</div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if selected_date and times %}
+<script>
+const labels = {{ times | tojson }};
+const powers = {{ powers | tojson }};
+const volts = {{ volts | tojson }};
+const currents = {{ currents | tojson }};
+
+const chartOptions = {
+    responsive: true,
+    scales: { y: { beginAtZero: true } },
+    plugins: {
+        legend: { display: true, position: 'top' },
+        tooltip: { mode: 'index', intersect: false }
+    },
+    interaction: { mode: 'nearest', intersect: false }
+};
+
+new Chart(document.getElementById('powerChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Power (W)',
+            data: powers,
+            borderColor: 'blue',
+            fill: false,
+            pointRadius: 2,
+            tension: 0
+        }]
+    },
+    options: chartOptions
+});
+
+new Chart(document.getElementById('voltageChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Voltage (V)',
+            data: volts,
+            borderColor: 'green',
+            fill: false,
+            pointRadius: 2,
+            tension: 0
+        }]
+    },
+    options: chartOptions
+});
+
+new Chart(document.getElementById('currentChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Current (A)',
+            data: currents,
+            borderColor: 'red',
+            fill: false,
+            pointRadius: 2,
+            tension: 0
+        }]
+    },
+    options: chartOptions
+});
+</script>
+{% endif %}
+{% endblock %}

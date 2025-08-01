@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Plug Control{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="layout">
+       <aside class="sidebar">
+    <div class="sidebar-logo">🔌</div>
+    <nav>
+        <a href="{{ url_for('dashboard') }}" class="{% if request.path == '/dashboard' %}active{% endif %}" title="Dashboard">
+            📊 <span class="link-text">Dashboard</span>
+        </a>
+        <a href="{{ url_for('history') }}" class="{% if request.path == '/history' %}active{% endif %}" title="History">
+            📈 <span class="link-text">History</span>
+        </a>
+    </nav>
+</aside>
+        
+        <div class="main-content">
+            <header class="main-header">
+                <h1 style="text-align: center;">Tuya Energy  Dashboard</h1>
+                {% if show_status_bar %}
+                <div class="status-bar">
+                    <div class="status-item">
+                        <span class="status-label">Device Status:</span>
+                        <span id="deviceStatus">Checking device...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Current Voltage:</span>
+                        <span id="currentVoltage">-- V</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Current Power:</span>
+                        <span id="currentPower">-- W</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Current:</span>
+                        <span id="current">-- A</span>
+                    </div>
+                </div>
+                {% endif %}
+            </header>
+
+            <main>
+                {% block content %}{% endblock %}
+            </main>
+
+            <footer>
+                <p>Tuya Smart Plug Control System &copy; kAFKa</p>
+            </footer>
+        </div>
+    </div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
